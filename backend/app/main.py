@@ -5,3 +5,52 @@ app = FastAPI(title="AI-RecruitX")
 @app.get("/")
 def root():
     return {"status": "AI-RecruitX Phase 0 setup successful"}
+from fastapi import FastAPI, File, UploadFile, Form
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.parsers import pdf_to_text
+from app.nlp import extract_skills
+from app.matcher import match_resume_to_job
+
+app = FastAPI(title="AI-RecruitX")
+
+# Allow local frontend dev (change in production)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/")
+def root():
+    return {"status": "AI-RecruitX backend running"}
+
+@app.post("/upload_resume")
+async def upload_resume(file: UploadFile | None = File(None), paste_text: str | None = Form(None)):
+    """
+    Accept either a PDF upload (file) or pasted text (paste_text).
+    Returns parsed_text and detected skills.
+    """
+    if file:
+        # Basic MIME check; we only require PDF for file path
+        if file.content_type != "application/pdf":
+            return JSONResponse({"error": "Only PDF supported for file upload"}, status_code=400)
+        raw_text = await pdf_to_text(file)
+    elif paste_text:
+        raw_text = paste_text
+    else:
+        return JSONResponse({"error": "Provide a PDF file or paste_text"}, status_code=400)
+
+    skills = extract_skills(raw_text)
+    return {"parsed_text": raw_text, "skills": skills}
+
+@app.post("/match")
+async def match(resume_text: str = Form(...), job_text: str = Form(...)):
+    """
+    Simple baseline match endpoint (keyword overlap).
+    """
+    result = match_resume_to_job(resume_text, job_text)
+    return result
