@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.parsers import pdf_to_text
 from app.nlp import extract_skills
 from app.matcher import match_resume_to_job
+from app.matcher import match_resume_to_job, hybrid_match
 
 app = FastAPI(title="AI-RecruitX")
 
@@ -53,4 +54,21 @@ async def match(resume_text: str = Form(...), job_text: str = Form(...)):
     Simple baseline match endpoint (keyword overlap).
     """
     result = match_resume_to_job(resume_text, job_text)
+    return result
+
+
+@app.post("/ai_match")
+async def ai_match(resume_text: str = Form(...), job_text: str = Form(...), weight_semantic: float = Form(0.6)):
+    """
+    AI-powered hybrid match. weight_semantic: 0..1 (default 0.6)
+    Returns semantic_score, keyword_score, final_score (all 0..100) and skill lists.
+    """
+    try:
+        w = float(weight_semantic)
+        if w < 0 or w > 1:
+            w = 0.6
+    except Exception:
+        w = 0.6
+
+    result = hybrid_match(resume_text, job_text, weight_semantic=w)
     return result
