@@ -1,63 +1,41 @@
 from app.nlp import extract_skills
-
-def match_resume_to_job(resume_text: str, job_text: str):
-    """
-    Baseline match using keyword overlap of canonical skills.
-    match_score = fraction of job skills present in resume (0-100)
-    """
-    resume_skills = set(extract_skills(resume_text))
-    job_skills = set(extract_skills(job_text))
-    matched = sorted(resume_skills & job_skills)
-    missing = sorted(job_skills - resume_skills)
-    match_score = round(len(matched) / max(len(job_skills), 1) * 100, 2)
-    return {
-        "match_score": match_score,
-        "matched_skills": matched,
-        "missing_skills": missing
-    }
-
-
-# backend/app/matcher.py
-from app.nlp import extract_skills
 from app.semantic_matcher import semantic_score_percent
-from typing import Dict, Any
 
-def keyword_score_percent(resume_text: str, job_text: str) -> float:
-    """
-    Compute keyword overlap score as percentage:
-    fraction of job skills present in resume (0-100)
-    """
-    resume_skills = set(extract_skills(resume_text))
-    job_skills = set(extract_skills(job_text))
-    if not job_skills:
-        # if job has no explicit skills, fallback to 0
-        return 0.0
-    matched = resume_skills & job_skills
-    score = len(matched) / len(job_skills)
-    return round(score * 100.0, 2)
+def hybrid_match(resume_text, job_text, weight_semantic=0.6):
+    # Extract categorized skills for both
+    res_cats = extract_skills(resume_text)
+    job_cats = extract_skills(job_text)
 
+    # Helper to calculate overlap
+    def calculate_metrics(res_list, job_list):
+        res_set, job_set = set(res_list), set(job_list)
+        matched = sorted(list(res_set & job_set))
+        missing = sorted(list(job_set - res_set))
+        score = (len(matched) / len(job_set) * 100) if job_set else 100
+        return score, matched, missing
 
-def hybrid_match(resume_text: str, job_text: str, weight_semantic: float = 0.6) -> Dict[str, Any]:
-    """
-    Hybrid match combining semantic similarity and keyword overlap.
-    weight_semantic: fraction given to semantic score (0..1)
-    returns dict with semantic_score, keyword_score, final_score, matched, missing
-    """
-    resume_skills = set(extract_skills(resume_text))
-    job_skills = set(extract_skills(job_text))
-    matched = sorted(resume_skills & job_skills)
-    missing = sorted(job_skills - resume_skills)
+    # Calculate scores for both categories
+    t_score, t_matched, t_missing = calculate_metrics(res_cats["technical"], job_cats["technical"])
+    s_score, s_matched, s_missing = calculate_metrics(res_cats["soft"], job_cats["soft"])
 
-    semantic = semantic_score_percent(resume_text, job_text)  # 0..100
-    keyword = keyword_score_percent(resume_text, job_text)    # 0..100
+    # Final Keyword Score (weighted: 70% Tech, 30% Soft)
+    keyword_score = round((t_score * 0.7) + (s_score * 0.3), 2)
+    
+    # Semantic Score (AI meaning)
+    semantic_score = semantic_score_percent(resume_text, job_text)
 
-    w = float(weight_semantic)
-    final = round((w * semantic + (1.0 - w) * keyword), 2)
+    # Final Hybrid Score
+    final_score = round((weight_semantic * semantic_score) + ((1 - weight_semantic) * keyword_score), 2)
 
     return {
-        "semantic_score": semantic,
-        "keyword_score": keyword,
-        "final_score": final,
-        "matched_skills": matched,
-        "missing_skills": missing
+        "final_score": final_score,
+        "is_suitable": final_score >= 60.0,
+        "detail": {
+            "technical_score": round(t_score, 2),
+            "soft_score": round(s_score, 2),
+            "semantic_score": semantic_score
+        },
+        "matched_skills": t_matched + s_matched,
+        "missing_technical": t_missing,
+        "missing_soft": s_missing
     }
