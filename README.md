@@ -30,5 +30,5 @@ https://github.com/PriyaSumbria/AI-RecruitX/tree/main/frontend
 
 ---
 
-## 📂 Project Structure
+
 
