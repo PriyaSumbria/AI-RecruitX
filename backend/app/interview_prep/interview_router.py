@@ -9,5 +9,9 @@ def get_questions(resume_text: str = Form(...), job_text: str = Form(...)):
     return generate_questions(resume_text, job_text)
 
 @router.post("/evaluate")
-def evaluate(answer: str = Form(...)):
-    return evaluate_answer(answer)
+def evaluate(
+    question: str = Form(...),
+    answer: str = Form(...),
+    job_text: str = Form(...)
+):
+    return evaluate_answer(question, answer, job_text)
