@@ -32,4 +32,3 @@ def generate_questions(resume_text: str, job_text: str):
         )
 
     return questions
-s
