@@ -71,3 +71,8 @@ async def ai_match(
 
 from app.interview_prep.interview_router import router as interview_router
 app.include_router(interview_router)
+
+from app.database.db import engine
+from app.database import models
+
+models.Base.metadata.create_all(bind=engine)
