@@ -27,7 +27,7 @@ def evaluate_answer(question: str, answer: str, job_text: str):
     semantic_score = similarity * 100
 
 
-    # ---------- 1️⃣ Relevance ----------
+    # ---------- 1️⃣ Relevance ---------
     question_words = set(question_lower.split())
     answer_words = set(answer_lower.split())
     overlap = len(question_words.intersection(answer_words))
