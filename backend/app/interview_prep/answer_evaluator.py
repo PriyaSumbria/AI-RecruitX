@@ -1,5 +1,8 @@
 import re
 from app.nlp import extract_skills
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
 
 
 WEAK_PHRASES = ["maybe", "i think", "kind of", "sort of", "probably"]
@@ -10,6 +13,19 @@ STAR_KEYWORDS = ["situation", "task", "action", "result"]
 def evaluate_answer(question: str, answer: str, job_text: str):
     answer_lower = answer.lower()
     question_lower = question.lower()
+
+    # ---------- 0️⃣ Semantic Similarity (NEW AI LAYER) ----------
+    vectorizer = TfidfVectorizer()
+
+    texts = [answer_lower, job_text.lower()]
+    tfidf_matrix = vectorizer.fit_transform(texts)
+
+    similarity = cosine_similarity(
+        tfidf_matrix[0:1], tfidf_matrix[1:2]
+    )[0][0]
+
+    semantic_score = similarity * 100
+
 
     # ---------- 1️⃣ Relevance ----------
     question_words = set(question_lower.split())
@@ -42,11 +58,13 @@ def evaluate_answer(question: str, answer: str, job_text: str):
 
     # ---------- Final Score ----------
     final_score = (
-        0.35 * relevance_score +
-        0.30 * depth_score +
-        0.20 * structure_score +
-        0.15 * confidence_score
+    0.30 * relevance_score +
+    0.25 * depth_score +
+    0.15 * structure_score +
+    0.10 * confidence_score +
+    0.20 * semantic_score
     )
+
 
     feedback = []
 
